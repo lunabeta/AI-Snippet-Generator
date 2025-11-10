@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Copy, Check } from "lucide-react"
+import { Loader2, Copy, Check, RotateCcw, Download } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { CodeBlock } from "@/components/code-block"
+import { toast } from "sonner"
 
 const LANGUAGES = [
   "javascript",
@@ -25,12 +27,22 @@ const LANGUAGES = [
   "rust",
   "java",
   "csharp",
+  "php",
+  "laravel",
+]
+
+const COMPLEXITY_LEVELS = [
+  { value: "beginner", label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "advanced", label: "Advanced" },
 ]
 
 export default function GeneratePage() {
   const [description, setDescription] = useState("")
   const [language, setLanguage] = useState("javascript")
+  const [complexity, setComplexity] = useState("intermediate")
   const [context, setContext] = useState("")
+  const [constraints, setConstraints] = useState("")
   const [generatedCode, setGeneratedCode] = useState("")
   const [title, setTitle] = useState("")
   const [tags, setTags] = useState("")
@@ -38,39 +50,87 @@ export default function GeneratePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [lastGenerationParams, setLastGenerationParams] = useState<{
+    description: string
+    language: string
+    complexity: string
+    context: string
+    constraints: string
+  } | null>(null)
   const router = useRouter()
 
   const handleGenerate = async () => {
     if (!description.trim()) {
-      setError("Please describe what you need")
+      toast.error("Please describe what you need")
       return
     }
 
     setIsLoading(true)
-    setError(null)
+    setGeneratedCode("")
+
+    const params = {
+      description,
+      language,
+      complexity,
+      context,
+      constraints,
+    }
+
+    try {
+      const response = await fetch("/api/generate-snippet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to generate snippet")
+      }
+
+      const data = await response.json()
+      setGeneratedCode(data.code)
+      setTitle(description.substring(0, 60))
+      setLastGenerationParams(params)
+      toast.success("Snippet generated successfully!")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRegenerate = async () => {
+    if (!lastGenerationParams) {
+      toast.error("No previous generation to regenerate")
+      return
+    }
+
+    setDescription(lastGenerationParams.description)
+    setLanguage(lastGenerationParams.language)
+    setComplexity(lastGenerationParams.complexity)
+    setContext(lastGenerationParams.context)
+    setConstraints(lastGenerationParams.constraints)
+
+    setIsLoading(true)
     setGeneratedCode("")
 
     try {
       const response = await fetch("/api/generate-snippet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description,
-          language,
-          context,
-        }),
+        body: JSON.stringify(lastGenerationParams),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to generate snippet")
+        throw new Error("Failed to regenerate snippet")
       }
 
       const data = await response.json()
       setGeneratedCode(data.code)
-      setTitle(description.substring(0, 60))
+      toast.success("Snippet regenerated!")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+      toast.error(err instanceof Error ? err.message : "An error occurred")
     } finally {
       setIsLoading(false)
     }
@@ -78,12 +138,11 @@ export default function GeneratePage() {
 
   const handleSave = async () => {
     if (!generatedCode || !title) {
-      setError("Please generate code and provide a title")
+      toast.error("Please generate code and provide a title")
       return
     }
 
     setIsSaving(true)
-    setError(null)
 
     try {
       const supabase = createClient()
@@ -113,18 +172,67 @@ export default function GeneratePage() {
 
       if (saveError) throw saveError
 
+      toast.success("Snippet saved successfully!")
       router.push("/dashboard/snippets")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save snippet")
+      toast.error(err instanceof Error ? err.message : "Failed to save snippet")
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(generatedCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(generatedCode)
+      setCopied(true)
+      toast.success("Code copied to clipboard!")
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      toast.error("Failed to copy code")
+    }
+  }
+
+  const handleExport = (format: "txt" | "json") => {
+    if (!generatedCode || !title) {
+      toast.error("No code to export")
+      return
+    }
+
+    let content = ""
+    let filename = ""
+    let mimeType = ""
+
+    if (format === "txt") {
+      content = generatedCode
+      filename = `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.txt`
+      mimeType = "text/plain"
+    } else {
+      content = JSON.stringify(
+        {
+          title,
+          description,
+          language,
+          code: generatedCode,
+          tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+          createdAt: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+      filename = `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.json`
+      mimeType = "application/json"
+    }
+
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success(`Exported as ${filename}`)
   }
 
   return (
@@ -170,6 +278,22 @@ export default function GeneratePage() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="complexity">Complexity Level</Label>
+              <Select value={complexity} onValueChange={setComplexity}>
+                <SelectTrigger id="complexity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPLEXITY_LEVELS.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      {level.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="context">Context (optional)</Label>
               <Textarea
                 id="context"
@@ -180,9 +304,19 @@ export default function GeneratePage() {
               />
             </div>
 
-            {error && <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>}
+            <div className="space-y-2">
+              <Label htmlFor="constraints">Constraints (optional)</Label>
+              <Textarea
+                id="constraints"
+                placeholder="e.g., speed optimization, memory efficient, readable code..."
+                value={constraints}
+                onChange={(e) => setConstraints(e.target.value)}
+                rows={2}
+              />
+            </div>
 
-            <Button onClick={handleGenerate} disabled={isLoading || !description.trim()} className="w-full" size="lg">
+            <div className="flex gap-2">
+              <Button onClick={handleGenerate} disabled={isLoading || !description.trim()} className="flex-1" size="lg">
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -191,35 +325,57 @@ export default function GeneratePage() {
               ) : (
                 "Generate Snippet"
               )}
-            </Button>
+              </Button>
+              {lastGenerationParams && (
+                <Button onClick={handleRegenerate} disabled={isLoading} variant="outline" size="lg" title="Regenerate">
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
         {/* Output Section */}
         <Card className="lg:row-span-2">
           <CardHeader>
-            <CardTitle>Generated Code</CardTitle>
-            {generatedCode && (
-              <Button variant="ghost" size="sm" onClick={handleCopy} className="ml-auto">
-                {copied ? (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
-                  </>
-                )}
-              </Button>
-            )}
+            <div className="flex items-center justify-between">
+              <CardTitle>Generated Code</CardTitle>
+              {generatedCode && (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleCopy}>
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleExport("txt")}>
+                    <Download className="h-4 w-4 mr-2" />
+                    TXT
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleExport("json")}>
+                    <Download className="h-4 w-4 mr-2" />
+                    JSON
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
-            {generatedCode ? (
-              <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-96 text-sm font-mono">
-                <code>{generatedCode}</code>
-              </pre>
+            {isLoading ? (
+              <div className="h-64 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : generatedCode ? (
+              <div className="max-h-96 overflow-auto">
+                <CodeBlock code={generatedCode} language={language} />
+              </div>
             ) : (
               <div className="h-64 flex items-center justify-center text-muted-foreground">
                 Generated code will appear here
