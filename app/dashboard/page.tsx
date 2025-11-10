@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
-import { Zap, Plus, TrendingUp, Code2, Layers } from "lucide-react"
+import { Zap, Plus, TrendingUp, Code2, Layers, Star } from "lucide-react"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -21,6 +21,7 @@ export default async function DashboardPage() {
 
   const publicSnippets = snippets?.filter((s) => s.is_public) || []
   const recentSnippets = snippets?.slice(0, 5) || []
+  const favoriteSnippets = snippets?.filter((s) => s.is_favorite) || []
 
   // Get language distribution
   const languageStats =
@@ -53,7 +54,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -77,6 +78,19 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{templates?.length || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Reusable templates</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Star size={18} />
+              Favorite Snippets
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{favoriteSnippets.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Starred snippets</p>
           </CardContent>
         </Card>
 
