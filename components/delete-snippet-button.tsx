@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { Trash2, AlertCircle } from "lucide-react"
+import { toast } from "sonner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,8 +33,10 @@ export function DeleteSnippetButton({ snippetId }: DeleteSnippetButtonProps) {
 
       if (error) throw error
 
+      toast.success("Snippet deleted successfully")
       router.push("/dashboard/snippets")
     } catch (error) {
+      toast.error("Failed to delete snippet")
       console.error("Delete failed:", error)
       setIsLoading(false)
     }
