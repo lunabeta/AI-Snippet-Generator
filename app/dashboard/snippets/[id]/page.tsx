@@ -3,9 +3,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Edit2, Eye, EyeOff } from "lucide-react"
+import { Edit2, Eye, EyeOff, Copy } from "lucide-react"
 import { DeleteSnippetButton } from "@/components/delete-snippet-button"
 import { ShareSnippetButton } from "@/components/share-snippet-button"
+import { FavoriteSnippetButton } from "@/components/favorite-snippet-button"
+import { ExportSnippetButton } from "@/components/export-snippet-button"
+import { CodeBlock } from "@/components/code-block"
 
 interface SnippetPageProps {
   params: Promise<{ id: string }>
@@ -43,6 +46,8 @@ export default async function SnippetDetailPage({ params }: SnippetPageProps) {
               Edit
             </Button>
           </Link>
+          <FavoriteSnippetButton snippetId={id} isFavorite={snippet.is_favorite || false} />
+          <ExportSnippetButton snippet={snippet} />
           <ShareSnippetButton snippet={snippet} />
           <DeleteSnippetButton snippetId={id} />
         </div>
@@ -55,9 +60,9 @@ export default async function SnippetDetailPage({ params }: SnippetPageProps) {
             <CardTitle>Code</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="bg-muted p-4 rounded-lg overflow-auto max-h-96 text-sm font-mono">
-              <code>{snippet.code}</code>
-            </pre>
+            <div className="max-h-96 overflow-auto">
+              <CodeBlock code={snippet.code} language={snippet.language} />
+            </div>
           </CardContent>
         </Card>
 
