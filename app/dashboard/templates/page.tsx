@@ -1,5 +1,3 @@
-"use client"
-
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -36,12 +34,9 @@ export default async function TemplatesPage() {
       {templates && templates.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {templates.map((template) => (
+            <Link key={template.id} href={`/dashboard/templates/${template.id}`}>
             <Card
-              key={template.id}
               className="p-4 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => {
-                window.location.href = `/dashboard/templates/${template.id}`
-              }}
             >
               <div className="space-y-3">
                 <div>
@@ -56,6 +51,7 @@ export default async function TemplatesPage() {
                 </div>
               </div>
             </Card>
+            </Link>
           ))}
         </div>
       ) : (
