@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Code, FileText, Settings, LogOut, Menu, X } from "lucide-react"
+import { Code, FileText, Settings, LogOut, Menu, X, Layers } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function AppSidebar() {
   const [user, setUser] = useState<any>(null)
@@ -28,7 +29,8 @@ export function AppSidebar() {
   const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: Code },
     { label: "Snippets", href: "/dashboard/snippets", icon: FileText },
-    { label: "Templates", href: "/dashboard/templates", icon: Settings },
+    { label: "Templates", href: "/dashboard/templates", icon: Layers },
+    { label: "Settings", href: "/dashboard/settings", icon: Settings },
   ]
 
   return (
@@ -70,6 +72,9 @@ export function AppSidebar() {
 
           {/* User Section */}
           <div className="border-t border-sidebar-border pt-4 space-y-4">
+            <div className="flex items-center justify-between px-4">
+              <ThemeToggle />
+            </div>
             {user && (
               <div className="px-4 py-2">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">{user.email}</p>
