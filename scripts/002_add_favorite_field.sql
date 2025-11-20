@@ -7,3 +7,5 @@ CREATE INDEX IF NOT EXISTS idx_snippets_favorite ON public.snippets(user_id, is_
 
 
 
+
+
